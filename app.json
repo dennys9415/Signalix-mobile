@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Signalix",
+    "slug": "signalix-mobile",
+    "version": "0.16.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "signalix",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0d0d12"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.signalix.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0d0d12"
+      },
+      "package": "com.signalix.app"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiUrl": "http://10.0.2.2:4000",
+      "wsUrl": "ws://10.0.2.2:5000"
+    }
+  }
+}
