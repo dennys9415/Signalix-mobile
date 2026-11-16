@@ -35,24 +35,17 @@ export async function encryptAndUpload(
   const iv = randomBytes(12);
   const ciphertext = aesGcmEncrypt(key, iv, plain);
 
-  // RN FormData uploads from a file URI, so stage the ciphertext in the cache.
-  const staged = new File(Paths.cache, `upload-${Date.now()}-${Math.random().toString(36).slice(2)}.bin`);
-  staged.write(ciphertext);
-  try {
-    const { url } = await api.uploadEncryptedBlob(staged.uri);
-    return {
-      v: 1,
-      url,
-      k: bytesToBase64Url(key),
-      iv: bytesToBase64Url(iv),
-      mime: meta.mime,
-      size: plain.length,
-      ...(meta.filename !== undefined && { filename: meta.filename }),
-      ...(meta.duration !== undefined && { duration: meta.duration }),
-    };
-  } finally {
-    try { staged.delete(); } catch { /* cache cleanup is best-effort */ }
-  }
+  const { url } = await api.uploadEncryptedBlob(ciphertext);
+  return {
+    v: 1,
+    url,
+    k: bytesToBase64Url(key),
+    iv: bytesToBase64Url(iv),
+    mime: meta.mime,
+    size: plain.length,
+    ...(meta.filename !== undefined && { filename: meta.filename }),
+    ...(meta.duration !== undefined && { duration: meta.duration }),
+  };
 }
 
 /** url → local decrypted file, so reopening / replaying doesn't re-download. */

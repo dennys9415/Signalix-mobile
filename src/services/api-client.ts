@@ -27,6 +27,7 @@ import type {
   UserProfileResponse,
   UserSearchResponse,
 } from '@signalix/contracts';
+import { File } from 'expo-file-system';
 import { config } from '~/lib/config';
 import { clearSession, loadSession, saveSession } from './secure-store';
 
@@ -114,12 +115,20 @@ async function rawRequest<T>(
   return json.data;
 }
 
-/** Multipart upload of a local file URI (image picker result). */
-async function uploadRequest<T>(path: string, field: string, file: { uri: string; name: string; type: string }): Promise<T> {
+/** A file to upload: a local URI (image picker / document picker) or bytes already in memory. */
+export type UploadFile = { name: string; type: string } & ({ uri: string } | { data: Uint8Array });
+
+/**
+ * Multipart upload. Expo's global `fetch` (SDK 52+) doesn't accept React
+ * Native's `{ uri, name, type }` FormData parts — it wants Blob-like objects
+ * exposing `bytes()` — so read the file and hand it over that way.
+ */
+async function uploadRequest<T>(path: string, field: string, file: UploadFile): Promise<T> {
+  const data = 'data' in file ? file.data : await new File(file.uri).bytes();
+  const part = { name: file.name, type: file.type, bytes: async () => data };
   const send = async (token: string | undefined) => {
     const form = new FormData();
-    // React Native's FormData accepts { uri, name, type } file descriptors.
-    form.append(field, file as unknown as Blob);
+    form.append(field, part as unknown as Blob);
     return fetch(`${config.apiUrl}${path}`, {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -196,9 +205,9 @@ export const api = {
   },
 
   /** Opaque AES-GCM ciphertext of an attachment (field `blob`, like the web). */
-  async uploadEncryptedBlob(fileUri: string): Promise<{ url: string; size: number }> {
+  async uploadEncryptedBlob(ciphertext: Uint8Array): Promise<{ url: string; size: number }> {
     return uploadRequest<{ url: string; size: number }>('/api/v1/media/encrypted-blob', 'blob', {
-      uri: fileUri,
+      data: ciphertext,
       name: 'attachment.bin',
       type: 'application/octet-stream',
     });
