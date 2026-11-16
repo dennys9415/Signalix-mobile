@@ -9,6 +9,7 @@ import type {
   ApiResponse,
   AuthSessionDTO,
   CallHistoryResponse,
+  IceServersResponse,
   ClearChatResponse,
   DeleteChatForMeResponse,
   ChatDTO,
@@ -213,6 +214,10 @@ export const api = {
 
   async deleteChatForMe(chatId: string): Promise<DeleteChatForMeResponse> {
     return rawRequest<DeleteChatForMeResponse>('POST', `/api/v1/chats/${chatId}/delete-for-me`);
+  },
+
+  async getIceServers(): Promise<IceServersResponse> {
+    return rawRequest<IceServersResponse>('GET', '/api/v1/calls/ice-servers');
   },
 
   async getCallHistory(limit = 50): Promise<CallHistoryResponse> {

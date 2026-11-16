@@ -12,15 +12,27 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.signalix.app"
+      "bundleIdentifier": "com.thesingularitybox.signalix",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Signalix uses the camera for video calls and to take a profile picture.",
+        "NSMicrophoneUsageDescription": "Signalix uses the microphone for voice and video calls.",
+        "UIBackgroundModes": [
+          "audio",
+          "voip"
+        ]
+      },
+      "appleTeamId": "25YU98RK6C"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#000000"
       },
-      "package": "com.signalix.app",
+      "package": "com.thesingularitybox.signalix",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.BLUETOOTH_CONNECT"
       ]
     },
     "plugins": [
@@ -31,9 +43,10 @@
         "expo-image-picker",
         {
           "photosPermission": "Signalix uses your photos so you can set a profile picture.",
-          "cameraPermission": "Signalix uses the camera so you can take a profile picture."
+          "cameraPermission": "Signalix uses the camera for video calls and to take a profile picture."
         }
-      ]
+      ],
+      "@config-plugins/react-native-webrtc"
     ],
     "extra": {
       "apiUrl": "http://10.0.2.2:4000",

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import type { AppStackParamList } from '~/navigation/RootNavigator';
 import { api } from '~/services/api-client';
 import { useAuthStore } from '~/store/auth.store';
 import { useChatStore } from '~/store/chat.store';
+import { useCallStore } from '~/store/call.store';
 import { Avatar } from '~/components/Avatar';
 import { TabHero } from '~/components/TabHero';
 import { colors, spacing } from '~/lib/theme';
@@ -31,9 +32,7 @@ export function CallsScreen() {
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
-  function callBack() {
-    Alert.alert('Calls', 'Voice and video calls from the app are coming soon. For now, call from the web app.');
-  }
+  const startCall = useCallStore((s) => s.startCall);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -67,7 +66,7 @@ export function CallsScreen() {
                   </View>
                 </View>
               </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel={video ? `Video call ${name}` : `Call ${name}`} onPress={callBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElev2, alignItems: 'center', justifyContent: 'center' }}>
+              <TouchableOpacity accessibilityLabel={video ? `Video call ${name}` : `Call ${name}`} onPress={() => void startCall(item.chatId, peerId, item.callType)} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElev2, alignItems: 'center', justifyContent: 'center' }}>
                 <Feather name={video ? 'video' : 'phone'} size={18} color={colors.text} />
               </TouchableOpacity>
             </View>

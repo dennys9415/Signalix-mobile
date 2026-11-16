@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChatType, MessageType } from '@signalix/contracts';
+import { CallType, ChatType, MessageType } from '@signalix/contracts';
 import { Image } from 'expo-image';
 import type { AppStackParamList } from '~/navigation/RootNavigator';
 import { useAuthStore } from '~/store/auth.store';
@@ -13,6 +13,7 @@ import { Avatar } from '~/components/Avatar';
 import { canvasGradient, colors, radius, spacing } from '~/lib/theme';
 import { useMediaUri } from '~/hooks/useMediaUri';
 import { useChatActions } from '~/hooks/useChatActions';
+import { useCallStore } from '~/store/call.store';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Conversation'>;
 
@@ -34,6 +35,7 @@ export function ConversationScreen({ route, navigation }: Props) {
   const [text, setText] = useState('');
   const listRef = useRef<FlatList<StoredMessage>>(null);
   const { openChatMenu } = useChatActions();
+  const startCall = useCallStore((s) => s.startCall);
 
   // In-chat search over the (already decrypted) messages, newest match first.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -97,8 +99,12 @@ export function ConversationScreen({ route, navigation }: Props) {
     setText('');
   }
 
-  function handleCall() {
-    Alert.alert('Calls', 'Voice and video calls are available on the web app. Mobile calling is coming in a later release.');
+  function handleCall(type: CallType) {
+    if (!chatId || !peer) {
+      Alert.alert('Calls', 'Send a message first, then you can call.');
+      return;
+    }
+    void startCall(chatId, peer.id, type);
   }
 
   function openProfile() {
@@ -180,10 +186,10 @@ export function ConversationScreen({ route, navigation }: Props) {
           </TouchableOpacity>
           {!isGroup && (
             <>
-              <TouchableOpacity accessibilityLabel="Video call" onPress={handleCall} style={pill}>
+              <TouchableOpacity accessibilityLabel="Video call" onPress={() => handleCall(CallType.VIDEO)} style={pill}>
                 <Feather name="video" size={18} color={colors.text} />
               </TouchableOpacity>
-              <TouchableOpacity accessibilityLabel="Call" onPress={handleCall} style={pill}>
+              <TouchableOpacity accessibilityLabel="Call" onPress={() => handleCall(CallType.AUDIO)} style={pill}>
                 <Feather name="phone" size={18} color={colors.text} />
               </TouchableOpacity>
             </>

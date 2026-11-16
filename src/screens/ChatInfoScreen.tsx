@@ -1,12 +1,13 @@
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChatType, ParticipantRole } from '@signalix/contracts';
+import { CallType, ChatType, ParticipantRole } from '@signalix/contracts';
 import type { AppStackParamList } from '~/navigation/RootNavigator';
 import { useAuthStore } from '~/store/auth.store';
 import { useChatStore } from '~/store/chat.store';
+import { useCallStore } from '~/store/call.store';
 import { Avatar } from '~/components/Avatar';
 import { Section, Row } from '~/components/Section';
 import { colors, heroGradient, radius, spacing } from '~/lib/theme';
@@ -34,8 +35,8 @@ export function ChatInfoScreen({ route, navigation }: Props) {
   const avatar = isGroup ? chat.avatarUrl : peer?.avatarUrl;
   const online = !!peer && presence[peer.id] === 'online';
 
-  const comingSoon = () =>
-    Alert.alert('Calls', 'Voice and video calls are available on the web app. Mobile calling is coming in a later release.');
+  const startCall = useCallStore((s) => s.startCall);
+  const call = (type: CallType) => { if (peer) void startCall(chat.id, peer.id, type); };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -61,8 +62,8 @@ export function ChatInfoScreen({ route, navigation }: Props) {
 
           <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
             <Action icon="message-circle" label="Message" onPress={openChat} />
-            {!isGroup && <Action icon="phone" label="Call" onPress={comingSoon} />}
-            {!isGroup && <Action icon="video" label="Video" onPress={comingSoon} />}
+            {!isGroup && <Action icon="phone" label="Call" onPress={() => call(CallType.AUDIO)} />}
+            {!isGroup && <Action icon="video" label="Video" onPress={() => call(CallType.VIDEO)} />}
           </View>
         </LinearGradient>
 

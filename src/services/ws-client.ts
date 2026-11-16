@@ -8,6 +8,13 @@
 import {
   ClientEvent,
   ServerEvent,
+  type ClientCallAcceptPayload,
+  type ClientCallHangupPayload,
+  type ClientCallIceCandidatePayload,
+  type ClientCallInvitePayload,
+  type ClientCallMediaUpdatePayload,
+  type ClientCallRejectPayload,
+  type ClientCallRingingPayload,
   type ClientMessageSendPayload,
   type MessageStatusPayload,
   type WsAuthenticatePayload,
@@ -58,6 +65,14 @@ class WsClient {
 
   /* convenience wrappers */
   sendMessageSend(p: ClientMessageSendPayload): boolean { return this.send(ClientEvent.MESSAGE_SEND, p); }
+  // v0.17.0 — call signaling (same events as the web client)
+  sendCallInvite(p: ClientCallInvitePayload): boolean { return this.send(ClientEvent.CALL_INVITE, p); }
+  sendCallRinging(p: ClientCallRingingPayload): boolean { return this.send(ClientEvent.CALL_RINGING, p); }
+  sendCallAccept(p: ClientCallAcceptPayload): boolean { return this.send(ClientEvent.CALL_ACCEPT, p); }
+  sendCallReject(p: ClientCallRejectPayload): boolean { return this.send(ClientEvent.CALL_REJECT, p); }
+  sendCallHangup(p: ClientCallHangupPayload): boolean { return this.send(ClientEvent.CALL_HANGUP, p); }
+  sendCallIceCandidate(p: ClientCallIceCandidatePayload): boolean { return this.send(ClientEvent.CALL_ICE_CANDIDATE, p); }
+  sendCallMediaUpdate(p: ClientCallMediaUpdatePayload): boolean { return this.send(ClientEvent.CALL_MEDIA_UPDATE, p); }
   sendMessageDelivered(p: Pick<MessageStatusPayload, 'messageId' | 'chatId'>): boolean { return this.send(ClientEvent.MESSAGE_DELIVERED, p); }
   sendMessageRead(p: Pick<MessageStatusPayload, 'messageId' | 'chatId'>): boolean { return this.send(ClientEvent.MESSAGE_READ, p); }
   sendHeartbeat(): boolean {

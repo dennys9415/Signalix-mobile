@@ -20,6 +20,7 @@ import {
   type ServerMessageSentPayload,
 } from '@signalix/contracts';
 import { cryptoService } from '~/crypto';
+import { useCallStore } from '~/store/call.store';
 import { api } from '~/services/api-client';
 import { wsClient } from '~/services/ws-client';
 import { useAuthStore } from '~/store/auth.store';
@@ -191,6 +192,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     function handleOther(event: string, payload: unknown): void {
+      if (event.startsWith('server.call.')) {
+        useCallStore.getState().handleServerEvent(event, payload);
+        return;
+      }
       if (event === ServerEvent.CHAT_CREATED) {
         const p = payload as ServerChatCreatedPayload;
         set((s) => {

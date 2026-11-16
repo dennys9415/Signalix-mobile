@@ -18,6 +18,7 @@ import { ChatInfoScreen } from '~/screens/ChatInfoScreen';
 import { CallsScreen } from '~/screens/CallsScreen';
 import { GroupsScreen } from '~/screens/GroupsScreen';
 import { NewGroupScreen } from '~/screens/NewGroupScreen';
+import { CallOverlay } from '~/components/CallOverlay';
 import { colors } from '~/lib/theme';
 
 export type AuthStackParamList = {
@@ -123,6 +124,7 @@ function AppNavigator() {
   }, [initWsHandler, loadChats]);
 
   return (
+    <>
     <AppStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       <AppStack.Screen name="Home" component={HomeTabs} />
       <AppStack.Screen name="Conversation" component={ConversationScreen} />
@@ -130,6 +132,8 @@ function AppNavigator() {
       <AppStack.Screen name="NewGroup" component={NewGroupScreen} />
       <AppStack.Screen name="ChatInfo" component={ChatInfoScreen} />
     </AppStack.Navigator>
+    <CallOverlay />
+    </>
   );
 }
 
