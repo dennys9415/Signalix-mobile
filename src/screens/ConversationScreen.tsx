@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -8,11 +11,13 @@ import { CallType, ChatType, MessageType } from '@signalix/contracts';
 import { Image } from 'expo-image';
 import type { AppStackParamList } from '~/navigation/RootNavigator';
 import { useAuthStore } from '~/store/auth.store';
-import { DECRYPT_FAILED, DRAFT_PREFIX, OTHER_DEVICE, SENT_ELSEWHERE, useChatStore, type StoredMessage } from '~/store/chat.store';
+import { DECRYPT_FAILED, DRAFT_PREFIX, OTHER_DEVICE, SENT_ELSEWHERE, useChatStore, type SendableType, type StoredMessage } from '~/store/chat.store';
 import { Avatar } from '~/components/Avatar';
 import { canvasGradient, colors, radius, spacing } from '~/lib/theme';
 import { useMediaUri } from '~/hooks/useMediaUri';
-import { useChatActions } from '~/hooks/useChatActions';
+import { showActionSheet, useChatActions } from '~/hooks/useChatActions';
+import { encryptAndUpload, parseMediaMetadata } from '~/lib/attachments';
+import { FileAttachment, VoiceNote } from '~/components/AttachmentBubbles';
 import { useCallStore } from '~/store/call.store';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Conversation'>;
@@ -90,6 +95,78 @@ export function ConversationScreen({ route, navigation }: Props) {
     if (messages.length === 0 || searchOpen) return;
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
   }, [messages.length, searchOpen]);
+
+  // ── Attachments: photos, camera, documents, voice notes ──
+  const [uploading, setUploading] = useState(false);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recState = useAudioRecorderState(recorder, 250);
+  const [recording, setRecording] = useState(false);
+
+  function dispatchBody(body: string, type: SendableType) {
+    if (chatId) sendMessage(chatId, body, type);
+    else if (recipientUsername && recipientUserId) sendToUser(recipientUsername, recipientUserId, body, type);
+  }
+
+  async function sendAttachment(uri: string, type: SendableType, meta: { mime: string; filename?: string; duration?: number }) {
+    setUploading(true);
+    try {
+      dispatchBody(JSON.stringify(await encryptAndUpload(uri, meta)), type);
+    } catch (e) {
+      Alert.alert('Could not send', (e as Error).message || 'Upload failed. Try again.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function pickPhoto(fromCamera: boolean) {
+    const perm = fromCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', fromCamera ? 'Allow camera access in Settings → Signalix.' : 'Allow photo access in Settings → Signalix.');
+      return;
+    }
+    const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8 };
+    const res = fromCamera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+    const asset = res.canceled ? undefined : res.assets[0];
+    if (asset) await sendAttachment(asset.uri, MessageType.IMAGE, { mime: asset.mimeType ?? 'image/jpeg' });
+  }
+
+  async function pickDocument() {
+    const res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false });
+    const asset = res.canceled ? undefined : res.assets[0];
+    if (asset) await sendAttachment(asset.uri, MessageType.FILE, { mime: asset.mimeType ?? 'application/octet-stream', filename: asset.name });
+  }
+
+  function openAttachMenu() {
+    showActionSheet('Send', [
+      { label: 'Photo Library', onPress: () => void pickPhoto(false) },
+      { label: 'Camera', onPress: () => void pickPhoto(true) },
+      { label: 'Document', onPress: () => void pickDocument() },
+    ]);
+  }
+
+  async function startRecording() {
+    const perm = await requestRecordingPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow microphone access in Settings → Signalix.');
+      return;
+    }
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+    setRecording(true);
+  }
+
+  async function stopRecording(send: boolean) {
+    const seconds = Math.round(recState.durationMillis / 1000);
+    await recorder.stop();
+    setRecording(false);
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    if (send && recorder.uri && seconds >= 1) {
+      await sendAttachment(recorder.uri, MessageType.AUDIO, { mime: 'audio/mp4', duration: seconds });
+    }
+  }
 
   function handleSend() {
     const trimmed = text.trim();
@@ -236,24 +313,52 @@ export function ConversationScreen({ route, navigation }: Props) {
 
       {/* Composer */}
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: Math.max(insets.bottom, spacing.md) }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', borderRadius: 30, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', paddingLeft: spacing.xl, padding: 5, minHeight: 60 }}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder="Your Message..."
-            placeholderTextColor="rgba(255,255,255,0.45)"
-            style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: 14, maxHeight: 120 }}
-            multiline
-            maxLength={4000}
-          />
-          <TouchableOpacity
-            accessibilityLabel="Send"
-            onPress={handleSend}
-            disabled={!text.trim()}
-            style={{ width: 64, height: 48, borderRadius: 24, backgroundColor: '#2a2a30', alignItems: 'center', justifyContent: 'center', opacity: text.trim() ? 1 : 0.6 }}
-          >
-            <Feather name="send" size={18} color={colors.text} />
-          </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', borderRadius: 30, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', padding: 5, minHeight: 60, gap: 4 }}>
+          {recording ? (
+            <>
+              <TouchableOpacity accessibilityLabel="Cancel recording" onPress={() => void stopRecording(false)} style={roundBtn}>
+                <Feather name="trash-2" size={18} color={colors.danger} />
+              </TouchableOpacity>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, height: 48 }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#ff453a' }} />
+                <Text style={{ color: colors.text, fontSize: 15, fontVariant: ['tabular-nums'] }}>{formatClock(recState.durationMillis / 1000)}</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 13 }}>Recording…</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity accessibilityLabel="Attach" onPress={openAttachMenu} disabled={uploading} style={roundBtn}>
+                {uploading ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="plus" size={22} color={colors.text} />}
+              </TouchableOpacity>
+              <TextInput
+                value={text}
+                onChangeText={setText}
+                placeholder={uploading ? 'Sending attachment…' : 'Your Message...'}
+                placeholderTextColor="rgba(255,255,255,0.45)"
+                style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: 14, maxHeight: 120 }}
+                multiline
+                maxLength={4000}
+              />
+            </>
+          )}
+          {recording || text.trim() ? (
+            <TouchableOpacity
+              accessibilityLabel="Send"
+              onPress={() => (recording ? void stopRecording(true) : handleSend())}
+              style={{ width: 64, height: 48, borderRadius: 24, backgroundColor: '#2a2a30', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Feather name="send" size={18} color={colors.text} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              accessibilityLabel="Record voice message"
+              onPress={() => void startRecording()}
+              disabled={uploading}
+              style={{ width: 64, height: 48, borderRadius: 24, backgroundColor: '#2a2a30', alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.5 : 1 }}
+            >
+              <Feather name="mic" size={19} color={colors.text} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -267,11 +372,14 @@ function Bubble({ m, mine, senderName, highlight }: { m: StoredMessage; mine: bo
   const locked = m.ciphertext === DECRYPT_FAILED || m.ciphertext === SENT_ELSEWHERE || m.ciphertext === OTHER_DEVICE;
   const isImage = !locked && m.messageType === MessageType.IMAGE;
   const media = useMediaUri(isImage ? m.ciphertext : undefined);
+  const attachment = !locked && (m.messageType === MessageType.FILE || m.messageType === MessageType.AUDIO)
+    ? parseMediaMetadata(m.ciphertext)
+    : null;
   const body = locked
     ? m.ciphertext
     : m.messageType === MessageType.IMAGE ? (media.failed ? '📷 Photo unavailable' : '📷 Loading photo…')
-    : m.messageType === MessageType.AUDIO ? '🎤 Voice message — play on web'
-    : m.messageType === MessageType.FILE ? '📎 File — open on web'
+    : m.messageType === MessageType.AUDIO ? '🎤 Voice message unavailable'
+    : m.messageType === MessageType.FILE ? '📎 File unavailable'
     : m.messageType === MessageType.VIDEO ? '🎬 Video — open on web'
     : m.ciphertext;
   const image = media.uri;
@@ -296,6 +404,10 @@ function Bubble({ m, mine, senderName, highlight }: { m: StoredMessage; mine: bo
       >
         {image ? (
           <Image source={{ uri: image }} style={{ width: 220, height: 220, borderRadius: radius.sm, marginVertical: 3 }} contentFit="cover" />
+        ) : attachment && m.messageType === MessageType.FILE ? (
+          <FileAttachment meta={attachment} />
+        ) : attachment && m.messageType === MessageType.AUDIO ? (
+          <VoiceNote meta={attachment} />
         ) : (
           <Text style={{ color: colors.text, fontSize: 14, lineHeight: 19, fontStyle: locked || body !== m.ciphertext ? 'italic' : 'normal' }}>
             {body}
@@ -326,6 +438,19 @@ const pill = {
   borderWidth: 1,
   borderColor: 'rgba(255,255,255,0.15)',
 };
+
+const roundBtn = {
+  width: 48,
+  height: 48,
+  borderRadius: 24,
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+};
+
+function formatClock(sec: number): string {
+  const s = Math.max(0, Math.floor(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });

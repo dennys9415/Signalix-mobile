@@ -52,9 +52,10 @@ interface ChatState {
   initWsHandler: () => void;
   loadChats: () => Promise<void>;
   loadMessages: (chatId: string) => Promise<void>;
-  sendMessage: (chatId: string, text: string) => void;
+  /** `text` is the body: plain text, or attachment metadata JSON for IMAGE / FILE / AUDIO. */
+  sendMessage: (chatId: string, text: string, messageType?: SendableType) => void;
   /** First message to someone without an existing direct chat. */
-  sendToUser: (recipientUsername: string, recipientUserId: string, text: string) => void;
+  sendToUser: (recipientUsername: string, recipientUserId: string, text: string, messageType?: SendableType) => void;
   /** Hide every message so far (for me); the chat stays listed. */
   clearChat: (chatId: string) => Promise<void>;
   /** Delete for me: hidden until someone writes again. */
@@ -64,6 +65,7 @@ interface ChatState {
 }
 
 export const DRAFT_PREFIX = 'draft:';
+export type SendableType = MessageType.TEXT | MessageType.IMAGE | MessageType.FILE | MessageType.AUDIO;
 /** Shown in place of an encrypted message this device can't open. */
 export const DECRYPT_FAILED = '🔒 Unable to decrypt this message';
 /** Own encrypted message sent from another device (senders never encrypt to themselves). */
@@ -253,31 +255,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendToUser(recipientUsername, recipientUserId, text) {
+  sendToUser(recipientUsername, recipientUserId, text, messageType = MessageType.TEXT) {
     const key = `${DRAFT_PREFIX}${recipientUsername}`;
     const tempId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const tmp: TempMessage = {
       tempId,
       chatId: key,
       ciphertext: text,
-      messageType: MessageType.TEXT,
+      messageType,
       createdAt: new Date().toISOString(),
       pending: true,
     };
     set((s) => ({ messages: { ...s.messages, [key]: [...(s.messages[key] ?? []), tmp] } }));
     void (async () => {
-      wsClient.sendMessageSend({ recipientUsername, ...(await sealText(text, [recipientUserId])), messageType: MessageType.TEXT, tempId });
+      wsClient.sendMessageSend({ recipientUsername, ...(await sealText(text, [recipientUserId])), messageType, tempId });
     })();
   },
 
-  sendMessage(chatId, text) {
+  sendMessage(chatId, text, messageType = MessageType.TEXT) {
     const tempId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
     const tmp: TempMessage = {
       tempId,
       chatId,
       ciphertext: text,
-      messageType: MessageType.TEXT,
+      messageType,
       createdAt: now,
       pending: true,
     };
@@ -289,7 +291,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       .map((p) => p.userId)
       .filter((id) => id !== me);
     void (async () => {
-      const sent = wsClient.sendMessageSend({ chatId, ...(await sealText(text, others)), messageType: MessageType.TEXT, tempId });
+      const sent = wsClient.sendMessageSend({ chatId, ...(await sealText(text, others)), messageType, tempId });
       if (!sent) markQueued(chatId, tempId);
     })();
   },

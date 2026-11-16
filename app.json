@@ -46,7 +46,8 @@
           "cameraPermission": "Signalix uses the camera for video calls and to take a profile picture."
         }
       ],
-      "@config-plugins/react-native-webrtc"
+      "@config-plugins/react-native-webrtc",
+      "expo-audio"
     ],
     "extra": {
       "apiUrl": "http://10.0.2.2:4000",

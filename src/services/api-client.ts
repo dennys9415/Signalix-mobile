@@ -195,6 +195,15 @@ export const api = {
     return uploadRequest<{ avatarUrl: string }>('/api/v1/profile/avatar', 'avatar', file);
   },
 
+  /** Opaque AES-GCM ciphertext of an attachment (field `blob`, like the web). */
+  async uploadEncryptedBlob(fileUri: string): Promise<{ url: string; size: number }> {
+    return uploadRequest<{ url: string; size: number }>('/api/v1/media/encrypted-blob', 'blob', {
+      uri: fileUri,
+      name: 'attachment.bin',
+      type: 'application/octet-stream',
+    });
+  },
+
   async removeAvatar(): Promise<void> {
     await rawRequest<Record<string, never>>('DELETE', '/api/v1/profile/avatar');
   },

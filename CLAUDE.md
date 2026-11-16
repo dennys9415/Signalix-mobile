@@ -11,7 +11,7 @@ This is `Signalix-mobile`, the React Native + Expo mobile app for Signalix.
    - non-sensitive state → `@react-native-async-storage/async-storage`
    - WebSocket: built-in (RN polyfills this natively)
 4. **E2EE is wire-compatible with the web** (`src/crypto/`): X25519 + Ed25519 + HKDF-SHA256 + AES-256-GCM via pure-JS `@noble/*` (works in Expo Go; `react-native-get-random-values` is imported first in `index.js`). `signal.ts` has no RN imports — storage/API are injected so `test-scripts/pw/interop.mts` runs it in Node against the real web client. Keep it that way, and keep the envelope format identical to `Signalix-frontend/src/lib/crypto/signal.service.ts`. Keys live in AsyncStorage encrypted under a keychain master key (`storage.ts`). Text is encrypted to every recipient device; plaintext fallback when anyone has no keys.
-5. Not yet on mobile: push notifications, voice/video calls, sending media / voice notes, device management UI.
+5. Not yet on mobile: push notifications, incoming calls while the app is closed (needs VoIP push / paid Apple account), device management UI. Calls (`react-native-webrtc`), file picking (`expo-document-picker`) and voice notes (`expo-audio`) are native — they need the development build (`npx expo run:ios --device`), not Expo Go.
 6. Design: soft teal → lavender gradients (`heroGradient`, `canvasGradient` in `lib/theme.ts`) on pure black, frosted translucent surfaces, big tightly-tracked display type. Keep new screens in this language.
 
 ## Technology
@@ -40,10 +40,8 @@ src/
 
 ## What is NOT implemented in v0.16.0
 
-- Sending encrypted media (received encrypted photos are decrypted and shown)
 - Push notifications
-- Sending media / file / voice attachments (received photos render; voice / files / video show a placeholder)
-- Voice + video calls (buttons explain they're web-only for now)
+- Video attachments (photos, files and voice notes are sent/received encrypted; WebM voice notes recorded in Chrome can't play on iOS)
 - Group management (create / edit / members) — groups are view-only
 - Device verification / safety number UI
 - Backup / restore (web-only in v0.15.0)
