@@ -16,7 +16,7 @@ This is `Signalix-mobile`, the React Native + Expo mobile app for Signalix.
 
 ## Technology
 
-- Expo SDK 58 (managed workflow; runs in the current Expo Go)
+- Expo SDK 58 (managed workflow + development build via `expo-dev-client`; Expo Go no longer covers calls / files / voice notes)
 - React Native 0.88
 - TypeScript strict
 - React Navigation 7 (native stack only, custom headers; deep links `signalix://chat/<id>`, `/profile`, `/new`)
@@ -42,6 +42,6 @@ src/
 
 - Push notifications
 - Video attachments (photos, files and voice notes are sent/received encrypted; WebM voice notes recorded in Chrome can't play on iOS)
-- Group management (create / edit / members) — groups are view-only
+- Group editing (rename / add / remove members) — groups can be created and viewed
 - Device verification / safety number UI
 - Backup / restore (web-only in v0.15.0)
