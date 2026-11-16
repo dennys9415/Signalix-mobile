@@ -54,6 +54,10 @@ interface ChatState {
   sendMessage: (chatId: string, text: string) => void;
   /** First message to someone without an existing direct chat. */
   sendToUser: (recipientUsername: string, recipientUserId: string, text: string) => void;
+  /** Hide every message so far (for me); the chat stays listed. */
+  clearChat: (chatId: string) => Promise<void>;
+  /** Delete for me: hidden until someone writes again. */
+  deleteChat: (chatId: string) => Promise<void>;
   setActiveChat: (chatId: string | null) => void;
   markChatRead: (chatId: string) => void;
 }
@@ -63,6 +67,8 @@ export const DRAFT_PREFIX = 'draft:';
 export const DECRYPT_FAILED = '🔒 Unable to decrypt this message';
 /** Own encrypted message sent from another device (senders never encrypt to themselves). */
 export const SENT_ELSEWHERE = '🔒 Sent from another device';
+/** Encrypted only for the user's other devices (e.g. sent before this device signed in). */
+export const OTHER_DEVICE = '🔒 Encrypted for your other device';
 
 export const useChatStore = create<ChatState>((set, get) => ({
   chats: [],
@@ -284,6 +290,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
 
+  async clearChat(chatId) {
+    await api.clearChat(chatId);
+    set((s) => {
+      const { [chatId]: _preview, ...previews } = s.previews;
+      return {
+        messages: { ...s.messages, [chatId]: [] },
+        previews,
+        unreadCounts: { ...s.unreadCounts, [chatId]: 0 },
+      };
+    });
+  },
+
+  async deleteChat(chatId) {
+    await api.deleteChatForMe(chatId);
+    set((s) => {
+      const { [chatId]: _messages, ...messages } = s.messages;
+      const { [chatId]: _preview, ...previews } = s.previews;
+      const { [chatId]: _unread, ...unreadCounts } = s.unreadCounts;
+      return { chats: s.chats.filter((c) => c.id !== chatId), messages, previews, unreadCounts };
+    });
+  },
+
   setActiveChat(chatId) {
     set({ activeChatId: chatId });
     if (chatId) get().markChatRead(chatId);
@@ -397,6 +425,7 @@ async function reveal(m: MessageDTO): Promise<MessageDTO> {
     return { ...m, ciphertext: text };
   } catch {
     const mine = m.senderId === useAuthStore.getState().session?.userId;
-    return { ...m, ciphertext: mine ? SENT_ELSEWHERE : DECRYPT_FAILED };
+    // No envelope for this device at all → it simply wasn't a recipient.
+    return { ...m, ciphertext: mine ? SENT_ELSEWHERE : !m.ciphertext ? OTHER_DEVICE : DECRYPT_FAILED };
   }
 }

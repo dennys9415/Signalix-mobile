@@ -15,6 +15,12 @@ type Props = NativeStackScreenProps<AppStackParamList, 'ChatInfo'>;
 
 /** Contact profile for a direct chat, or group details for a group. */
 export function ChatInfoScreen({ route, navigation }: Props) {
+  // Opened from the conversation → go back to it; from the chat list → open the chat.
+  function openChat() {
+    const routes = navigation.getState().routes;
+    if (routes[routes.length - 2]?.name === 'Conversation') navigation.goBack();
+    else navigation.replace('Conversation', { chatId: route.params.chatId });
+  }
   const insets = useSafeAreaInsets();
   const currentUserId = useAuthStore((s) => s.session?.userId ?? '');
   const chat = useChatStore((s) => s.chats.find((c) => c.id === route.params.chatId));
@@ -54,7 +60,7 @@ export function ChatInfoScreen({ route, navigation }: Props) {
           </Text>
 
           <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
-            <Action icon="message-circle" label="Message" onPress={() => navigation.goBack()} />
+            <Action icon="message-circle" label="Message" onPress={openChat} />
             {!isGroup && <Action icon="phone" label="Call" onPress={comingSoon} />}
             {!isGroup && <Action icon="video" label="Video" onPress={comingSoon} />}
           </View>

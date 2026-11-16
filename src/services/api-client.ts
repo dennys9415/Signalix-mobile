@@ -8,6 +8,9 @@
 import type {
   ApiResponse,
   AuthSessionDTO,
+  CallHistoryResponse,
+  ClearChatResponse,
+  DeleteChatForMeResponse,
   ChatDTO,
   CreateGroupChatRequest,
   CreateGroupChatResponse,
@@ -202,6 +205,18 @@ export const api = {
 
   async markChatRead(chatId: string): Promise<void> {
     await rawRequest<{ chatId: string }>('POST', `/api/v1/chats/${chatId}/read`);
+  },
+
+  async clearChat(chatId: string): Promise<ClearChatResponse> {
+    return rawRequest<ClearChatResponse>('POST', `/api/v1/chats/${chatId}/clear`);
+  },
+
+  async deleteChatForMe(chatId: string): Promise<DeleteChatForMeResponse> {
+    return rawRequest<DeleteChatForMeResponse>('POST', `/api/v1/chats/${chatId}/delete-for-me`);
+  },
+
+  async getCallHistory(limit = 50): Promise<CallHistoryResponse> {
+    return rawRequest<CallHistoryResponse>('GET', `/api/v1/calls?limit=${limit}`);
   },
 
   /* ── E2EE key directory (same endpoints as the web client) ── */

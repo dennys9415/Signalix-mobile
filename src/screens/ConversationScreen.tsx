@@ -8,10 +8,11 @@ import { ChatType, MessageType } from '@signalix/contracts';
 import { Image } from 'expo-image';
 import type { AppStackParamList } from '~/navigation/RootNavigator';
 import { useAuthStore } from '~/store/auth.store';
-import { DECRYPT_FAILED, DRAFT_PREFIX, SENT_ELSEWHERE, useChatStore, type StoredMessage } from '~/store/chat.store';
+import { DECRYPT_FAILED, DRAFT_PREFIX, OTHER_DEVICE, SENT_ELSEWHERE, useChatStore, type StoredMessage } from '~/store/chat.store';
 import { Avatar } from '~/components/Avatar';
 import { canvasGradient, colors, radius, spacing } from '~/lib/theme';
 import { useMediaUri } from '~/hooks/useMediaUri';
+import { useChatActions } from '~/hooks/useChatActions';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Conversation'>;
 
@@ -32,6 +33,28 @@ export function ConversationScreen({ route, navigation }: Props) {
 
   const [text, setText] = useState('');
   const listRef = useRef<FlatList<StoredMessage>>(null);
+  const { openChatMenu } = useChatActions();
+
+  // In-chat search over the (already decrypted) messages, newest match first.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [matchIdx, setMatchIdx] = useState(0);
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!searchOpen || q.length < 2) return [];
+    const out: number[] = [];
+    messages.forEach((m, i) => {
+      if (m.messageType === MessageType.TEXT && m.ciphertext.toLowerCase().includes(q)) out.push(i);
+    });
+    return out.reverse();
+  }, [messages, query, searchOpen]);
+  const activeMatch = matches[matchIdx];
+
+  useEffect(() => { setMatchIdx(0); }, [query]);
+  useEffect(() => {
+    if (activeMatch === undefined) return;
+    listRef.current?.scrollToIndex({ index: activeMatch, viewPosition: 0.4, animated: true });
+  }, [activeMatch]);
 
   const isGroup = chat?.type === ChatType.GROUP;
   const peer = useMemo(
@@ -62,9 +85,9 @@ export function ConversationScreen({ route, navigation }: Props) {
   }, [chatId, loadMessages, setActiveChat]);
 
   useEffect(() => {
-    if (messages.length === 0) return;
+    if (messages.length === 0 || searchOpen) return;
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
-  }, [messages.length]);
+  }, [messages.length, searchOpen]);
 
   function handleSend() {
     const trimmed = text.trim();
@@ -82,6 +105,19 @@ export function ConversationScreen({ route, navigation }: Props) {
     if (chatId) navigation.navigate('ChatInfo', { chatId });
   }
 
+  function openMenu() {
+    if (!chat) return;
+    openChatMenu(chat, chatLabel, {
+      extra: [{ label: 'Search in chat', onPress: () => setSearchOpen(true) }],
+      afterDelete: () => navigation.goBack(),
+    });
+  }
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setQuery('');
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -94,6 +130,37 @@ export function ConversationScreen({ route, navigation }: Props) {
         style={{ flex: 1, borderBottomLeftRadius: 44, borderBottomRightRadius: 44, overflow: 'hidden' }}
       >
         {/* Header */}
+        {searchOpen ? (
+          <View style={{ paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <TouchableOpacity accessibilityLabel="Close search" onPress={closeSearch} hitSlop={12}>
+              <Feather name="x" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <View style={[pill, { flex: 1, width: undefined, flexDirection: 'row', paddingHorizontal: spacing.md, gap: spacing.sm, justifyContent: 'flex-start' }]}>
+              <Feather name="search" size={16} color="rgba(255,255,255,0.85)" />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search this chat"
+                placeholderTextColor="rgba(255,255,255,0.7)"
+                style={{ flex: 1, color: colors.text, fontSize: 15 }}
+                autoFocus
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              {query.trim().length >= 2 && (
+                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 }}>
+                  {matches.length === 0 ? '0' : `${matchIdx + 1}/${matches.length}`}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity accessibilityLabel="Older match" disabled={matches.length === 0} onPress={() => setMatchIdx((i) => Math.min(i + 1, matches.length - 1))} style={[pill, { width: 40, opacity: matches.length ? 1 : 0.5 }]}>
+              <Feather name="chevron-up" size={18} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityLabel="Newer match" disabled={matches.length === 0} onPress={() => setMatchIdx((i) => Math.max(i - 1, 0))} style={[pill, { width: 40, opacity: matches.length ? 1 : 0.5 }]}>
+              <Feather name="chevron-down" size={18} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        ) : (
         <View style={{ paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <TouchableOpacity accessibilityLabel="Back" onPress={() => navigation.goBack()} hitSlop={12}>
             <Feather name="arrow-left" size={24} color={colors.text} />
@@ -112,14 +179,20 @@ export function ConversationScreen({ route, navigation }: Props) {
             </View>
           </TouchableOpacity>
           {!isGroup && (
-            <TouchableOpacity accessibilityLabel="Call" onPress={handleCall} style={pill}>
-              <Feather name="phone" size={18} color={colors.text} />
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity accessibilityLabel="Video call" onPress={handleCall} style={pill}>
+                <Feather name="video" size={18} color={colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity accessibilityLabel="Call" onPress={handleCall} style={pill}>
+                <Feather name="phone" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </>
           )}
-          <TouchableOpacity accessibilityLabel="Chat info" onPress={openProfile} disabled={!chatId} style={[pill, { opacity: chatId ? 1 : 0.5 }]}>
-            <Feather name={isGroup ? 'users' : 'user'} size={18} color={colors.text} />
+          <TouchableOpacity accessibilityLabel="Chat options" onPress={openMenu} disabled={!chat} style={[pill, { width: 40, opacity: chat ? 1 : 0.5 }]}>
+            <Feather name="more-vertical" size={18} color={colors.text} />
           </TouchableOpacity>
         </View>
+        )}
 
         <FlatList
           ref={listRef}
@@ -132,13 +205,18 @@ export function ConversationScreen({ route, navigation }: Props) {
             return (
               <Bubble
                 m={item}
+                highlight={index === activeMatch ? 'active' : matches.includes(index) ? 'match' : undefined}
                 mine={sender === currentUserId}
                 senderName={isGroup && sender !== currentUserId && prevSender !== sender ? senderNames[sender] : undefined}
               />
             );
           }}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: 6, flexGrow: 1 }}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() => { if (!searchOpen) listRef.current?.scrollToEnd({ animated: false }); }}
+          onScrollToIndexFailed={(info) => {
+            listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+            setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.4 }), 100);
+          }}
           keyboardDismissMode="interactive"
           ListEmptyComponent={
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 120 }}>
@@ -176,11 +254,11 @@ export function ConversationScreen({ route, navigation }: Props) {
   );
 }
 
-function Bubble({ m, mine, senderName }: { m: StoredMessage; mine: boolean; senderName: string | undefined }) {
+function Bubble({ m, mine, senderName, highlight }: { m: StoredMessage; mine: boolean; senderName: string | undefined; highlight: 'active' | 'match' | undefined }) {
   const queued = 'queued' in m ? m.queued : false;
   const pending = 'pending' in m;
   // Bodies arrive already decrypted (chat.store); only the placeholders stay locked.
-  const locked = m.ciphertext === DECRYPT_FAILED || m.ciphertext === SENT_ELSEWHERE;
+  const locked = m.ciphertext === DECRYPT_FAILED || m.ciphertext === SENT_ELSEWHERE || m.ciphertext === OTHER_DEVICE;
   const isImage = !locked && m.messageType === MessageType.IMAGE;
   const media = useMediaUri(isImage ? m.ciphertext : undefined);
   const body = locked
@@ -200,6 +278,8 @@ function Bubble({ m, mine, senderName }: { m: StoredMessage; mine: boolean; send
         style={{
           backgroundColor: mine ? colors.bubbleMine : colors.bubbleTheirs,
           borderRadius: radius.md,
+          borderWidth: highlight ? 2 : 0,
+          borderColor: highlight === 'active' ? '#ffffff' : 'rgba(255,214,102,0.8)',
           paddingHorizontal: spacing.md,
           paddingVertical: 7,
           flexDirection: 'row',

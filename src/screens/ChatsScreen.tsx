@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, ScrollView, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChatType, MessageType, type ChatDTO, type PublicUserDTO } from '@signalix/contracts';
 import type { AppStackParamList } from '~/navigation/RootNavigator';
 import { useAuthStore } from '~/store/auth.store';
 import { useChatStore, type StoredMessage } from '~/store/chat.store';
 import { Avatar } from '~/components/Avatar';
+import { useChatActions } from '~/hooks/useChatActions';
 import { colors, display, heroGradient, radius, spacing } from '~/lib/theme';
 import { formatChatTime } from '~/lib/format';
 
@@ -38,6 +40,7 @@ export function ChatsScreen() {
   const loading = useChatStore((s) => s.loading);
   const loadChats = useChatStore((s) => s.loadChats);
   const [query, setQuery] = useState('');
+  const { openChatMenu, confirmDelete } = useChatActions();
 
   const rows = useMemo<Row[]>(() => {
     const list = chats.map((chat) => {
@@ -93,7 +96,7 @@ export function ChatsScreen() {
           />
         </View>
         <View style={{ flex: 1 }} />
-        <TouchableOpacity accessibilityLabel="Profile and settings" onPress={() => navigation.navigate('Profile')} hitSlop={12}>
+        <TouchableOpacity accessibilityLabel="Profile and settings" onPress={() => navigation.navigate('Home', { screen: 'Settings' })} hitSlop={12}>
           <Feather name="chevron-down" size={26} color={colors.text} />
         </TouchableOpacity>
       </View>
@@ -133,7 +136,14 @@ export function ChatsScreen() {
         ListHeaderComponent={hero}
         contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
         keyboardShouldPersistTaps="handled"
-        renderItem={({ item }) => <ChatRow row={item} onPress={() => open(item)} />}
+        renderItem={({ item }) => (
+          <ChatRow
+            row={item}
+            onPress={() => open(item)}
+            onMore={() => openChatMenu(item.chat, item.label)}
+            onDelete={item.chat.type === ChatType.DIRECT ? () => confirmDelete(item.chat.id, item.label) : undefined}
+          />
+        )}
         ListEmptyComponent={
           <View style={{ padding: spacing.xl * 2, alignItems: 'center', gap: spacing.md }}>
             <Text style={{ color: colors.textMuted, fontSize: 15 }}>
@@ -152,9 +162,24 @@ export function ChatsScreen() {
   );
 }
 
-function ChatRow({ row, onPress }: { row: Row; onPress: () => void }) {
+/** Swipe left for "More" (contact info / clear / delete) and "Delete", like WhatsApp. */
+function ChatRow({ row, onPress, onMore, onDelete }: { row: Row; onPress: () => void; onMore: () => void; onDelete: (() => void) | undefined }) {
+  const swipe = useRef<SwipeableMethods>(null);
+  const act = (fn: () => void) => () => { swipe.current?.close(); fn(); };
   return (
-    <TouchableOpacity onPress={onPress} style={{ flexDirection: 'row', paddingHorizontal: spacing.xl, paddingVertical: spacing.md, gap: spacing.lg, alignItems: 'center' }}>
+    <ReanimatedSwipeable
+      ref={swipe}
+      friction={2}
+      rightThreshold={40}
+      overshootRight={false}
+      renderRightActions={() => (
+        <View style={{ flexDirection: 'row' }}>
+          <SwipeAction icon="more-horizontal" label="More" color="#3a3a44" onPress={act(onMore)} />
+          {onDelete && <SwipeAction icon="trash-2" label="Delete" color="#d9434b" onPress={act(onDelete)} />}
+        </View>
+      )}
+    >
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={{ flexDirection: 'row', paddingHorizontal: spacing.xl, paddingVertical: spacing.md, gap: spacing.lg, alignItems: 'center', backgroundColor: colors.bg }}>
       <Avatar name={row.label} uri={row.avatarUrl} size={54} online={row.online} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
@@ -170,6 +195,16 @@ function ChatRow({ row, onPress }: { row: Row; onPress: () => void }) {
           )}
         </View>
       </View>
+    </TouchableOpacity>
+    </ReanimatedSwipeable>
+  );
+}
+
+function SwipeAction({ icon, label, color, onPress }: { icon: keyof typeof Feather.glyphMap; label: string; color: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity accessibilityLabel={label} onPress={onPress} style={{ width: 78, backgroundColor: color, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+      <Feather name={icon} size={20} color={colors.text} />
+      <Text style={{ color: colors.text, fontSize: 12, fontWeight: '600' }}>{label}</Text>
     </TouchableOpacity>
   );
 }

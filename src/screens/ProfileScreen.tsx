@@ -5,18 +5,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { UserProfileResponse } from '@signalix/contracts';
-import type { AppStackParamList } from '~/navigation/RootNavigator';
 import { useAuthStore } from '~/store/auth.store';
 import { api } from '~/services/api-client';
 import { Avatar } from '~/components/Avatar';
 import { Section, Row } from '~/components/Section';
 import { colors, heroGradient, radius, spacing } from '~/lib/theme';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
-
-export function ProfileScreen({ navigation }: Props) {
+/** Profile + settings — rendered as the Settings tab. */
+export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const logout = useAuthStore((s) => s.logout);
   const [me, setMe] = useState<UserProfileResponse | null>(null);
@@ -94,10 +91,8 @@ export function ProfileScreen({ navigation }: Props) {
           end={{ x: 1, y: 1 }}
           style={{ paddingTop: insets.top + spacing.sm, paddingBottom: spacing.xl * 1.5, borderBottomLeftRadius: radius.xxl, borderBottomRightRadius: radius.xxl, alignItems: 'center' }}
         >
-          <View style={{ alignSelf: 'stretch', flexDirection: 'row', paddingHorizontal: spacing.xl }}>
-            <TouchableOpacity accessibilityLabel="Back" onPress={() => navigation.goBack()} hitSlop={12}>
-              <Feather name="arrow-left" size={24} color={colors.text} />
-            </TouchableOpacity>
+          <View style={{ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xl, height: 28 }}>
+            <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700', flex: 1, textAlign: 'center' }}>Settings</Text>
           </View>
 
           <TouchableOpacity onPress={photoMenu} disabled={!user || busy} style={{ marginTop: spacing.md }}>
