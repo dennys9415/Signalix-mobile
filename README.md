@@ -9,14 +9,16 @@ React Native + Expo mobile client for Signalix. Foundation MVP — Android-first
 - Auth (login / register / refresh-on-401 / logout) backed by `expo-secure-store`.
 - Chat list with realtime updates, pull-to-refresh, unread badges, presence dots.
 - Direct + group conversations: history, send, receive, auto-deliver, auto-read.
-- Bottom tabs (Chats / Settings) + push to Conversation.
-- Settings: username / email / display name / app version / sign out.
+- Gradient chat list with search, contact row and "Add" → new chat (user search, first message creates the chat).
+- Conversation on a gradient canvas with frosted bubbles; contact / group info screen.
+- Profile: change or remove photo (library or camera), account details, sign out.
+- Deep links: `signalix://chat/<id>`, `signalix://profile`, `signalix://new`.
+- End-to-end encryption, wire-compatible with the web client (`src/crypto/`, pure-JS `@noble/*`): text to/from web and mobile devices is encrypted per recipient device; received encrypted photos are decrypted on device. Interop test: `test-scripts/pw/interop.mts`.
 
 ## What's deferred
 
 | Feature | Lands in |
 |---|---|
-| E2EE port (X25519 + Ed25519 + AES-GCM + HKDF via `@stablelib/*`) | v0.17.0 |
 | Push notifications (APNs / FCM) | v0.18.0 |
 | Media / file / voice notes | v0.19.0 |
 | Voice + video calls | v0.20.0 |
@@ -26,9 +28,9 @@ See [`docs/MOBILE_ROADMAP.md`](../docs/MOBILE_ROADMAP.md).
 
 ## Stack
 
-- Expo SDK 51 (managed workflow)
-- React Native 0.74 / React 18.2 / TypeScript strict
-- React Navigation (native-stack + bottom-tabs)
+- Expo SDK 58 (managed workflow)
+- React Native 0.88 / React 19.3 / TypeScript strict
+- React Navigation 7 (native-stack, custom gradient headers)
 - Zustand v5
 - `@signalix/contracts` via `file:` protocol
 
@@ -44,7 +46,7 @@ cd ../Signalix-contracts && npm install && npm run build && cd -
 npm install
 npm run start
 
-# 3. press `a` to launch Android emulator
+# 3. press `a` for the Android emulator, or open exp://127.0.0.1:8081 in the iOS simulator (Expo Go)
 ```
 
 Edit `app.json` → `extra.apiUrl` + `extra.wsUrl` for non-default backend hosts.

@@ -12,9 +12,16 @@ import type {
   CreateGroupChatRequest,
   CreateGroupChatResponse,
   GetMessagesResponse,
+  KeyBundleResponse,
+  RegisterDeviceKeysRequest,
+  RegisterDeviceKeysResponse,
+  UploadPreKeysRequest,
+  UploadPreKeysResponse,
+  PresenceLookupResponse,
   LoginRequest,
   RegisterRequest,
   UserProfileResponse,
+  UserSearchResponse,
 } from '@signalix/contracts';
 import { config } from '~/lib/config';
 import { clearSession, loadSession, saveSession } from './secure-store';
@@ -103,6 +110,31 @@ async function rawRequest<T>(
   return json.data;
 }
 
+/** Multipart upload of a local file URI (image picker result). */
+async function uploadRequest<T>(path: string, field: string, file: { uri: string; name: string; type: string }): Promise<T> {
+  const send = async (token: string | undefined) => {
+    const form = new FormData();
+    // React Native's FormData accepts { uri, name, type } file descriptors.
+    form.append(field, file as unknown as Blob);
+    return fetch(`${config.apiUrl}${path}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+  };
+  let res = await send((await loadSession())?.accessToken);
+  if (res.status === 401) {
+    const refreshed = await refreshSession();
+    if (!refreshed) throw new ApiError('Session expired', 401);
+    res = await send(refreshed.accessToken);
+  }
+  const json = (await res.json().catch(() => null)) as ApiResponse<T> | null;
+  if (!json?.success || json.data === undefined) {
+    throw new ApiError(json?.error?.message ?? 'Upload failed', res.status, json?.error?.code);
+  }
+  return json.data;
+}
+
 /* ────────── Public surface ────────── */
 
 export const api = {
@@ -150,8 +182,40 @@ export const api = {
     return rawRequest<CreateGroupChatResponse>('POST', '/api/v1/chats/group', { body: payload });
   },
 
+  async searchUsers(q: string, limit = 20): Promise<UserSearchResponse> {
+    const qs = new URLSearchParams({ q, limit: String(limit) });
+    return rawRequest<UserSearchResponse>('GET', `/api/v1/users/search?${qs.toString()}`);
+  },
+
+  async uploadAvatar(file: { uri: string; name: string; type: string }): Promise<{ avatarUrl: string }> {
+    return uploadRequest<{ avatarUrl: string }>('/api/v1/profile/avatar', 'avatar', file);
+  },
+
+  async removeAvatar(): Promise<void> {
+    await rawRequest<Record<string, never>>('DELETE', '/api/v1/profile/avatar');
+  },
+
+  async getPresence(userIds: string[]): Promise<PresenceLookupResponse> {
+    if (userIds.length === 0) return { presence: [] };
+    return rawRequest<PresenceLookupResponse>('GET', `/api/v1/presence?userIds=${userIds.map(encodeURIComponent).join(',')}`);
+  },
+
   async markChatRead(chatId: string): Promise<void> {
     await rawRequest<{ chatId: string }>('POST', `/api/v1/chats/${chatId}/read`);
+  },
+
+  /* ── E2EE key directory (same endpoints as the web client) ── */
+
+  async registerDeviceKeys(dto: RegisterDeviceKeysRequest): Promise<RegisterDeviceKeysResponse> {
+    return rawRequest<RegisterDeviceKeysResponse>('POST', '/api/v1/crypto/devices/keys', { body: dto });
+  },
+
+  async uploadPreKeys(dto: UploadPreKeysRequest): Promise<UploadPreKeysResponse> {
+    return rawRequest<UploadPreKeysResponse>('POST', '/api/v1/crypto/devices/keys/pre-keys', { body: dto });
+  },
+
+  async getKeyBundle(userId: string): Promise<KeyBundleResponse> {
+    return rawRequest<KeyBundleResponse>('GET', `/api/v1/crypto/users/${encodeURIComponent(userId)}/key-bundle`);
   },
 };
 

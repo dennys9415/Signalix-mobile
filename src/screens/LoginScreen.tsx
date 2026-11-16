@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Text, TouchableOpacity } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '~/navigation/RootNavigator';
 import { useAuthStore } from '~/store/auth.store';
-import { colors, radius, spacing } from '~/lib/theme';
+import { AuthLayout, AuthInput, PrimaryButton } from '~/components/AuthLayout';
+import { colors, spacing } from '~/lib/theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -23,70 +23,16 @@ export function LoginScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={{ flex: 1, padding: spacing.xl, justifyContent: 'center' }}>
-        <Text style={{ color: colors.text, fontSize: 28, fontWeight: '700', marginBottom: spacing.xl }}>
-          Welcome back
+    <AuthLayout title={'Welcome\nBack'} subtitle="Sign in to pick up your conversations.">
+      <AuthInput value={identifier} onChangeText={setIdentifier} placeholder="Username or email" autoCapitalize="none" autoCorrect={false} textContentType="username" />
+      <AuthInput value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry textContentType="password" onSubmitEditing={handleSubmit} />
+      {error && <Text style={{ color: colors.danger, fontSize: 13, marginLeft: spacing.md }}>{error}</Text>}
+      <PrimaryButton label="Sign in" onPress={handleSubmit} loading={loading} />
+      <TouchableOpacity onPress={() => navigation.navigate('Register')} style={{ marginTop: spacing.md }}>
+        <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 14 }}>
+          New to Signalix? <Text style={{ color: colors.text, fontWeight: '700' }}>Create an account</Text>
         </Text>
-
-        <TextInput
-          value={identifier}
-          onChangeText={setIdentifier}
-          placeholder="Username or email"
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={inputStyle}
-        />
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Password"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry
-          style={inputStyle}
-        />
-
-        {error && (
-          <Text style={{ color: colors.danger, fontSize: 13, marginTop: spacing.sm }}>{error}</Text>
-        )}
-
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={loading}
-          style={{
-            backgroundColor: colors.accent,
-            borderRadius: radius.lg,
-            paddingVertical: 14,
-            alignItems: 'center',
-            marginTop: spacing.lg,
-            opacity: loading ? 0.5 : 1,
-          }}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Sign in</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate('Register')} style={{ marginTop: spacing.lg }}>
-          <Text style={{ color: colors.accent, textAlign: 'center', fontSize: 14 }}>
-            Don&apos;t have an account? Create one
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      </TouchableOpacity>
+    </AuthLayout>
   );
 }
-
-const inputStyle = {
-  backgroundColor: colors.bgElev,
-  color: colors.text,
-  borderRadius: radius.md,
-  padding: spacing.lg,
-  fontSize: 15,
-  marginBottom: spacing.md,
-  borderWidth: 1,
-  borderColor: colors.border,
-} as const;

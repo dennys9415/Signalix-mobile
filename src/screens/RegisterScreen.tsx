@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Text, TouchableOpacity } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { AuthStackParamList } from '~/navigation/RootNavigator';
 import { useAuthStore } from '~/store/auth.store';
-import { colors, radius, spacing } from '~/lib/theme';
+import { AuthLayout, AuthInput, PrimaryButton } from '~/components/AuthLayout';
+import { colors, spacing } from '~/lib/theme';
 
-export function RegisterScreen() {
+type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
+
+export function RegisterScreen({ navigation }: Props) {
   const { register, loading, error } = useAuthStore();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -26,44 +30,18 @@ export function RegisterScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ padding: spacing.xl, justifyContent: 'center', flexGrow: 1 }}>
-        <Text style={{ color: colors.text, fontSize: 28, fontWeight: '700', marginBottom: spacing.xl }}>
-          Create account
+    <AuthLayout title={'Let’s Get\nConnected'} subtitle="Create your Signalix account.">
+      <AuthInput value={displayName} onChangeText={setDisplayName} placeholder="Your name (optional)" autoCorrect={false} textContentType="name" />
+      <AuthInput value={username} onChangeText={setUsername} placeholder="Username" autoCapitalize="none" autoCorrect={false} textContentType="username" />
+      <AuthInput value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress" />
+      <AuthInput value={password} onChangeText={setPassword} placeholder="Password (min 8 characters)" secureTextEntry textContentType="newPassword" />
+      {error && <Text style={{ color: colors.danger, fontSize: 13, marginLeft: spacing.md }}>{error}</Text>}
+      <PrimaryButton label="Create account" onPress={handleSubmit} loading={loading} />
+      <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: spacing.md }}>
+        <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 14 }}>
+          Already have an account? <Text style={{ color: colors.text, fontWeight: '700' }}>Sign in</Text>
         </Text>
-
-        <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" style={inputStyle} />
-        <TextInput value={username} onChangeText={setUsername} placeholder="Username" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} style={inputStyle} />
-        <TextInput value={displayName} onChangeText={setDisplayName} placeholder="Display name (optional)" placeholderTextColor={colors.textMuted} autoCorrect={false} style={inputStyle} />
-        <TextInput value={password} onChangeText={setPassword} placeholder="Password (min 8 chars)" placeholderTextColor={colors.textMuted} secureTextEntry style={inputStyle} />
-
-        {error && (
-          <Text style={{ color: colors.danger, fontSize: 13, marginTop: spacing.sm }}>{error}</Text>
-        )}
-
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={loading}
-          style={{ backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: 14, alignItems: 'center', marginTop: spacing.lg, opacity: loading ? 0.5 : 1 }}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Create account</Text>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+      </TouchableOpacity>
+    </AuthLayout>
   );
 }
-
-const inputStyle = {
-  backgroundColor: colors.bgElev,
-  color: colors.text,
-  borderRadius: radius.md,
-  padding: spacing.lg,
-  fontSize: 15,
-  marginBottom: spacing.md,
-  borderWidth: 1,
-  borderColor: colors.border,
-} as const;

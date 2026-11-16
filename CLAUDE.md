@@ -10,15 +10,17 @@ This is `Signalix-mobile`, the React Native + Expo mobile app for Signalix.
    - tokens / secrets → `expo-secure-store`
    - non-sensitive state → `@react-native-async-storage/async-storage`
    - WebSocket: built-in (RN polyfills this natively)
-4. v0.16.0 is **plaintext-only**. No E2EE on mobile yet — the crypto stack ports in v0.17.0 (see `MOBILE_ROADMAP.md`). Mobile sends/receives plaintext; web↔web E2EE between web clients is unaffected.
-5. Out of scope for v0.16.0: push notifications, voice/video calls, media uploads, voice notes, device management UI.
+4. **E2EE is wire-compatible with the web** (`src/crypto/`): X25519 + Ed25519 + HKDF-SHA256 + AES-256-GCM via pure-JS `@noble/*` (works in Expo Go; `react-native-get-random-values` is imported first in `index.js`). `signal.ts` has no RN imports — storage/API are injected so `test-scripts/pw/interop.mts` runs it in Node against the real web client. Keep it that way, and keep the envelope format identical to `Signalix-frontend/src/lib/crypto/signal.service.ts`. Keys live in AsyncStorage encrypted under a keychain master key (`storage.ts`). Text is encrypted to every recipient device; plaintext fallback when anyone has no keys.
+5. Not yet on mobile: push notifications, voice/video calls, sending media / voice notes, device management UI.
+6. Design: soft teal → lavender gradients (`heroGradient`, `canvasGradient` in `lib/theme.ts`) on pure black, frosted translucent surfaces, big tightly-tracked display type. Keep new screens in this language.
 
 ## Technology
 
-- Expo SDK 51 (managed workflow)
-- React Native 0.74
+- Expo SDK 58 (managed workflow; runs in the current Expo Go)
+- React Native 0.88
 - TypeScript strict
-- React Navigation (bottom tabs + native stack)
+- React Navigation 7 (native stack only, custom headers; deep links `signalix://chat/<id>`, `/profile`, `/new`)
+- UI: `expo-linear-gradient`, `expo-image`, `@expo/vector-icons` (Feather), `expo-image-picker`
 - Zustand v5
 - `@signalix/contracts` via `file:` protocol
 
@@ -26,9 +28,9 @@ This is `Signalix-mobile`, the React Native + Expo mobile app for Signalix.
 
 ```
 src/
-  screens/       — top-level routes (Login, Register, Chats, Conversation, Settings)
-  navigation/    — RootNavigator + AuthStack + AppTabs
-  components/    — reusable UI (Avatar, ChatRow, MessageBubble)
+  screens/       — Login, Register, Chats, Conversation, NewChat, Profile, ChatInfo
+  navigation/    — RootNavigator (AuthStack | AppStack) + deep-link config
+  components/    — reusable UI (Avatar, Section/Row, AuthLayout)
   store/         — auth.store, chat.store (zustand)
   services/      — api-client, ws-client, secure-store wrappers
   hooks/         — useSession, useChat, useMessages
@@ -38,10 +40,10 @@ src/
 
 ## What is NOT implemented in v0.16.0
 
-- E2EE (port lands in v0.17.0)
+- Sending encrypted media (received encrypted photos are decrypted and shown)
 - Push notifications
-- Media / file / voice attachments
-- Voice + video calls
-- Settings beyond username / email / logout / version
+- Sending media / file / voice attachments (received photos render; voice / files / video show a placeholder)
+- Voice + video calls (buttons explain they're web-only for now)
+- Group management (create / edit / members) — groups are view-only
 - Device verification / safety number UI
 - Backup / restore (web-only in v0.15.0)

@@ -4,11 +4,11 @@
     "slug": "signalix-mobile",
     "version": "0.16.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "scheme": "signalix",
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#0d0d12"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": false,
@@ -16,12 +16,21 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0d0d12"
+        "backgroundColor": "#000000"
       },
       "package": "com.signalix.app"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-status-bar",
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Signalix uses your photos so you can set a profile picture.",
+          "cameraPermission": "Signalix uses the camera so you can take a profile picture."
+        }
+      ]
     ],
     "extra": {
       "apiUrl": "http://10.0.2.2:4000",
