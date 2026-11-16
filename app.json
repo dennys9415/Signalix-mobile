@@ -18,7 +18,10 @@
       "adaptiveIcon": {
         "backgroundColor": "#000000"
       },
-      "package": "com.signalix.app"
+      "package": "com.signalix.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-secure-store",
@@ -34,7 +37,11 @@
     ],
     "extra": {
       "apiUrl": "http://10.0.2.2:4000",
-      "wsUrl": "ws://10.0.2.2:5000"
-    }
+      "wsUrl": "ws://10.0.2.2:5000",
+      "eas": {
+        "projectId": "55850128-dedd-485a-8031-f7d4e96374e1"
+      }
+    },
+    "owner": "denn9415"
   }
 }
