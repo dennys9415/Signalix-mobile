@@ -17,9 +17,15 @@ function forPlatform(url: string): string {
   return Platform.OS === 'ios' ? url.replace('10.0.2.2', 'localhost') : url;
 }
 
+/**
+ * `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_WS_URL` (inlined by Metro at start)
+ * point the app at a deployed stack without editing app.json, e.g.
+ *   EXPO_PUBLIC_API_URL=https://signalix-api.example.com \
+ *   EXPO_PUBLIC_WS_URL=wss://signalix-ws.example.com npx expo start
+ */
 export const config = {
-  apiUrl: forPlatform(extra.apiUrl ?? 'http://10.0.2.2:4000'),
-  wsUrl: forPlatform(extra.wsUrl ?? 'ws://10.0.2.2:5000'),
+  apiUrl: process.env.EXPO_PUBLIC_API_URL ?? forPlatform(extra.apiUrl ?? 'http://10.0.2.2:4000'),
+  wsUrl: process.env.EXPO_PUBLIC_WS_URL ?? forPlatform(extra.wsUrl ?? 'ws://10.0.2.2:5000'),
 };
 
 /**
