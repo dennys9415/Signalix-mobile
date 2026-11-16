@@ -4,6 +4,14 @@
 
 React Native + Expo mobile client for Signalix. Foundation MVP — Android-first.
 
+## Screenshots
+
+| Chats | Conversation | Incoming call | Recent calls |
+|---|---|---|---|
+| ![](docs/screenshots/chats.jpg) | ![](docs/screenshots/conversation.jpg) | ![](docs/screenshots/incoming-call.jpg) | ![](docs/screenshots/calls.jpg) |
+| **Group chat** | **Contact info** | **Groups** | **Settings** |
+| ![](docs/screenshots/group.jpg) | ![](docs/screenshots/contact-info.jpg) | ![](docs/screenshots/groups.jpg) | ![](docs/screenshots/settings.jpg) |
+
 ## What works in v0.16.0
 
 - Auth (login / register / refresh-on-401 / logout) backed by `expo-secure-store`.
